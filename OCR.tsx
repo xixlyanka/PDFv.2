@@ -1,19 +1,20 @@
 
 
 import React, { useState } from 'react';
-import { UploadedFile, ProcessingResult, JobStatus } from '../types';
-import FileDropzone from '../components/FileDropzone';
+import { UploadedFile, ProcessingResult, JobStatus, OcrMode } from '@/types';
+import FileDropzone from '@/FileDropzone';
 import { ScanText, Loader2, AlertCircle, FileText, ShieldCheck } from 'lucide-react';
-import { docService } from '../services/docService';
-import RewardedDownload from '../components/RewardedDownload';
-import SEO from '../components/SEO';
-import { useToast } from '../contexts/ToastContext';
-import GoogleAd from '../components/GoogleAd';
-import { AD_SLOTS } from '../constants';
+import { docService } from '@/docService';
+import RewardedDownload from '@/RewardedDownload';
+import SEO from '@/SEO';
+import { useToast } from '@/ToastContext';
+import GoogleAd from '@/GoogleAd';
+import { AD_SLOTS } from '@/constants';
 
 const OCR: React.FC = () => {
   const [file, setFile] = useState<UploadedFile | null>(null);
   const [lang, setLang] = useState('eng');
+  const [mode, setMode] = useState<OcrMode>('local');
   const [status, setStatus] = useState<JobStatus>('idle');
   const [progressMsg, setProgressMsg] = useState('');
   const [result, setResult] = useState<ProcessingResult | null>(null);
@@ -36,7 +37,7 @@ const OCR: React.FC = () => {
     setProgressMsg("Initializing OCR...");
     
     try {
-      const res = await docService.ocr(file, lang, (msg) => setProgressMsg(msg));
+      const res = await docService.ocr(file, lang, mode, (msg) => setProgressMsg(msg));
       setResult(res);
       setStatus('completed');
       addToast("Text recognized successfully!", 'success');
@@ -56,6 +57,10 @@ const OCR: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2">
             <div className="text-center lg:text-left mb-8">
+                <div className="flex items-center gap-3 justify-center lg:justify-start mb-3">
+                    <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-200">Local quick</span>
+                    <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-200">Server full OCR</span>
+                </div>
                 <h1 className="text-3xl font-bold text-gray-900 dark:text-white sm:text-4xl">OCR PDF</h1>
                 <p className="mt-3 text-lg text-gray-500 dark:text-gray-400">Extract text from scanned documents.</p>
             </div>
@@ -63,8 +68,8 @@ const OCR: React.FC = () => {
             <div className="mb-6 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4 flex items-start gap-3">
                 <ShieldCheck className="w-5 h-5 text-green-700 dark:text-green-400 flex-shrink-0 mt-0.5" />
                 <div>
-                <h4 className="text-sm font-bold text-green-800 dark:text-green-400">Local Recognition</h4>
-                <p className="text-sm text-green-700 dark:text-green-300">We use Tesseract.js to recognize text directly in your browser.</p>
+                <h4 className="text-sm font-bold text-green-800 dark:text-green-400">Server-side processing</h4>
+                <p className="text-sm text-green-700 dark:text-green-300">Полный режим использует безопасную серверную обработку: файл отправляется на endpoint, распознаётся целиком и сразу удаляется. Быстрый режим остаётся полностью локальным (первая страница).</p>
                 </div>
             </div>
 
@@ -90,7 +95,7 @@ const OCR: React.FC = () => {
                         <div className="space-y-4 max-w-sm mx-auto">
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Document Language</label>
-                                <select 
+                                <select
                                     value={lang}
                                     onChange={(e) => setLang(e.target.value)}
                                     className="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 dark:text-white"
@@ -102,6 +107,29 @@ const OCR: React.FC = () => {
                                     <option value="fra">French</option>
                                     <option value="ukr">Ukrainian</option>
                                 </select>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-3 text-sm">
+                                <label className="flex items-center gap-2 p-3 rounded-lg border border-gray-200 dark:border-slate-700 bg-white/70 dark:bg-slate-800/50 cursor-pointer">
+                                    <input
+                                        type="radio"
+                                    name="ocr-mode"
+                                        value="local"
+                                        checked={mode === 'local'}
+                                        onChange={() => setMode('local')}
+                                    />
+                                    <span className="text-gray-800 dark:text-gray-100">Local (1 page)</span>
+                                </label>
+                                <label className="flex items-center gap-2 p-3 rounded-lg border border-indigo-200 dark:border-indigo-700 bg-indigo-50/70 dark:bg-indigo-900/30 cursor-pointer">
+                                    <input
+                                        type="radio"
+                                        name="ocr-mode"
+                                        value="server"
+                                        checked={mode === 'server'}
+                                        onChange={() => setMode('server')}
+                                    />
+                                    <span className="text-indigo-800 dark:text-indigo-200">Full (server)</span>
+                                </label>
                             </div>
 
                             <button 

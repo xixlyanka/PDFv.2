@@ -1,15 +1,15 @@
 
 
 import React, { useState } from 'react';
-import { UploadedFile, ProcessingResult, JobStatus } from '../types';
-import FileDropzone from '../components/FileDropzone';
+import { UploadedFile, ProcessingResult, JobStatus } from '@/types';
+import FileDropzone from '@/FileDropzone';
 import { Image as ImageIcon, Loader2, FileText, ShieldCheck } from 'lucide-react';
-import { docService } from '../services/docService';
-import RewardedDownload from '../components/RewardedDownload';
-import SEO from '../components/SEO';
-import { useToast } from '../contexts/ToastContext';
-import GoogleAd from '../components/GoogleAd';
-import { AD_SLOTS } from '../constants';
+import { docService } from '@/docService';
+import RewardedDownload from '@/RewardedDownload';
+import SEO from '@/SEO';
+import { useToast } from '@/ToastContext';
+import GoogleAd from '@/GoogleAd';
+import { AD_SLOTS } from '@/constants';
 
 const ExtractImages: React.FC = () => {
   const [file, setFile] = useState<UploadedFile | null>(null);

@@ -1,11 +1,11 @@
 
 import React, { useState } from 'react';
-import { useAdSettings } from '../contexts/AdSettingsContext';
-import { useStats } from '../contexts/StatsContext';
-import { useLanguage } from '../contexts/LanguageContext';
-import SEO from '../components/SEO';
+import { useAdSettings } from '@/AdSettingsContext';
+import { useStats } from '@/StatsContext';
+import { useLanguage } from '@/LanguageContext';
+import SEO from '@/SEO';
 import { Lock, BarChart2, DollarSign, FileText, Globe, Download, Save, AlertCircle, ExternalLink } from 'lucide-react';
-import { ROUTES } from '../constants';
+import { ROUTES } from '@/constants';
 
 const Admin: React.FC = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -28,7 +28,7 @@ const Admin: React.FC = () => {
 
   const handleSaveGaId = () => {
       setGaId(newGaId);
-      alert('Google Analytics ID Saved!');
+      alert('Analytics ID saved!');
   };
 
   const generateSitemap = () => {
@@ -178,11 +178,11 @@ const Admin: React.FC = () => {
                           <div>
                               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('admin.ga_id')}</label>
                               <div className="flex gap-2">
-                                  <input 
-                                      type="text" 
+                                  <input
+                                      type="text"
                                       value={newGaId}
                                       onChange={(e) => setNewGaId(e.target.value)}
-                                      placeholder="G-XXXXXXXXXX"
+                                      placeholder="Tracking-ID-12345"
                                       className="flex-1 px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 dark:text-white text-sm"
                                   />
                                   <button onClick={handleSaveGaId} className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-bold hover:bg-indigo-700">
@@ -190,16 +190,11 @@ const Admin: React.FC = () => {
                                   </button>
                               </div>
                           </div>
-                          
+
                           <div className="pt-4 border-t border-gray-100 dark:border-slate-700 flex flex-col gap-3">
-                              <a 
-                                  href="https://analytics.google.com/analytics/web/"
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="w-full py-2 border border-indigo-200 bg-indigo-50 dark:bg-indigo-900/30 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 rounded-lg text-sm font-bold hover:bg-indigo-100 dark:hover:bg-indigo-900/50 flex items-center justify-center transition-colors"
-                              >
-                                  <ExternalLink className="w-4 h-4 mr-2" /> Open Google Analytics Dashboard
-                              </a>
+                              <div className="w-full py-2 border border-indigo-200 bg-indigo-50 dark:bg-indigo-900/30 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 rounded-lg text-sm font-bold flex items-center justify-center">
+                                  <ExternalLink className="w-4 h-4 mr-2" /> Open your analytics dashboard
+                              </div>
 
                               <button 
                                   onClick={generateSitemap}
@@ -218,7 +213,7 @@ const Admin: React.FC = () => {
                       <div className="flex items-center justify-between">
                           <div>
                               <p className="font-medium text-gray-900 dark:text-white">Show Ads</p>
-                              <p className="text-xs text-gray-500">Toggle Google AdSense visibility.</p>
+                              <p className="text-xs text-gray-500">Toggle advertising placements.</p>
                           </div>
                           <button 
                             onClick={() => setShowAds(!showAds)}

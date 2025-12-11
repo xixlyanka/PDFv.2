@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState } from 'react';
-import { UploadedFile } from '../types';
+import { UploadedFile } from '@/types';
 
 interface FileHandlerContextType {
   pipelineFile: UploadedFile | null;
