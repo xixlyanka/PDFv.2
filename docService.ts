@@ -3,38 +3,12 @@ import { UploadedFile, ProcessingResult } from '@/types';
 import { PAPER_SIZES } from '@/constants';
 import { enginesReady } from './libInit';
 
-const sendUsageLog = async (event: string, payload: Record<string, any>) => {
-  try {
-    await fetch('/api/log', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ event, ...payload }),
-    });
-  } catch {
-    // best-effort logging, ignore errors
-  }
-};
-
 const formatSize = (bytes: number): string => {
   if (bytes === 0) return '0 Bytes';
   const k = 1024;
   const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-};
-
-const bufferToBase64 = (buffer: ArrayBuffer): string => {
-  const bytes = new Uint8Array(buffer);
-  let binary = '';
-  for (let i = 0; i < bytes.byteLength; i++) {
-    binary += String.fromCharCode(bytes[i]);
-  }
-  return btoa(binary);
-};
-
-const fileToBase64 = async (file: File) => {
-  const arrayBuffer = await file.arrayBuffer();
-  return bufferToBase64(arrayBuffer);
 };
 
 const ensureEnginesLoaded = async () => {
@@ -79,49 +53,19 @@ export const docService = {
               fileSize: formatSize(blob.size)
           };
 
-          sendUsageLog('convert', { source: 'xlsx', target: 'pdf', size: file.size, mode: 'client' });
           return result;
       }
-      // DOCX to PDF
+      // DOCX to PDF (fully client-side)
       else if (file.type === 'DOCX') {
-          // Prefer backend conversion for fidelity; fallback to client mammoth
-          try {
-              onProgress?.('Uploading to secure converter...');
-              const arrayBuffer = await file.file.arrayBuffer();
-              const fileData = bufferToBase64(arrayBuffer);
-              const response = await fetch('/api/convert-docx', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ fileName: file.file.name, fileData }),
-              });
-
-              if (!response.ok) {
-                  const message = await response.text();
-                  throw new Error(message || 'Backend conversion failed');
-              }
-
-              const pdfBlob = await response.blob();
-              const result: ProcessingResult = {
-                  success: true,
-                  downloadUrl: URL.createObjectURL(pdfBlob),
-                  fileName: file.file.name.replace(/\.docx$/i, '') + '.pdf',
-                  fileSize: formatSize(pdfBlob.size)
-              };
-
-              sendUsageLog('convert', { source: 'docx', target: 'pdf', size: file.size, mode: 'backend' });
-              return result;
-          } catch (err: any) {
-              if (!window.mammoth) {
-                  throw new Error(err?.message || 'DOCX conversion failed and no client fallback available');
-              }
-              onProgress?.('Falling back to in-browser conversion...');
-              const arrayBuffer = await file.file.arrayBuffer();
-              const result = await window.mammoth.convertToHtml({ arrayBuffer });
-              const html = result.value;
-              const pdf = await docService.htmlToPdf(html);
-              sendUsageLog('convert', { source: 'docx', target: 'pdf', size: file.size, mode: 'client-fallback', error: err?.message });
-              return pdf;
+          if (!window.mammoth) {
+              throw new Error('DOCX engine not loaded');
           }
+
+          onProgress?.('Converting DOCX in browser...');
+          const arrayBuffer = await file.file.arrayBuffer();
+          const result = await window.mammoth.convertToHtml({ arrayBuffer });
+          const html = result.value;
+          return docService.htmlToPdf(html);
       }
       // Image to PDF
       else if ((file.type === 'JPG' || file.type === 'PNG') && format === 'PDF') {
@@ -162,13 +106,11 @@ export const docService = {
               fileSize: formatSize(blob.size)
           };
 
-          sendUsageLog('convert', { source: file.type.toLowerCase(), target: 'pdf', size: file.size, mode: 'client' });
           return result;
       }
       // PDF to JPG (Uses Extract Images logic essentially, but tailored)
       else if (file.type === 'PDF' && format === 'JPG') {
           const result = await docService.extractImages(file, onProgress);
-          sendUsageLog('convert', { source: 'pdf', target: 'jpg', size: file.size, mode: 'client' });
           return result;
       }
 
@@ -176,32 +118,6 @@ export const docService = {
   },
 
   compress: async (file: UploadedFile, level: number): Promise<ProcessingResult> => {
-      const tryBackend = async () => {
-          const base64 = await fileToBase64(file.file);
-          const response = await fetch('/api/compress', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ fileName: file.file.name, fileData: base64, level }),
-          });
-
-          if (!response.ok) {
-              const errBody = await response.json().catch(() => ({}));
-              throw new Error(errBody?.error || 'Backend compression failed');
-          }
-
-          const arrayBuffer = await response.arrayBuffer();
-          const blob = new Blob([arrayBuffer], { type: 'application/pdf' });
-          const result = {
-              success: true,
-              downloadUrl: URL.createObjectURL(blob),
-              fileName: `compressed_${file.file.name}`,
-              fileSize: formatSize(blob.size),
-          };
-
-          sendUsageLog('compress', { sizeBefore: file.size, sizeAfter: blob.size, level, mode: 'backend' });
-          return { result, blobSize: blob.size };
-      };
-
       const tryClient = async () => {
           await ensureEnginesLoaded();
           if (!window.pdfjsLib) throw new Error("PDF.js engine not loaded");
@@ -249,27 +165,14 @@ export const docService = {
               fileSize: formatSize(blob.size)
           };
 
-          sendUsageLog('compress', { sizeBefore: file.size, sizeAfter: blob.size, level, mode: 'client' });
           return { result, blobSize: blob.size };
       };
 
       try {
-          const backend = await tryBackend();
-          if (backend.blobSize < file.size * 0.98) return backend.result;
-
-          try {
-              const client = await tryClient();
-              return client.blobSize < backend.blobSize ? client.result : backend.result;
-          } catch {
-              return backend.result;
-          }
-      } catch (err: any) {
-          console.warn('Backend compression failed, falling back to client:', err?.message || err);
-          try {
-              return (await tryClient()).result;
-          } catch (clientErr: any) {
-              throw new Error("Compression failed: " + (clientErr?.message || clientErr));
-          }
+          const client = await tryClient();
+          return client.result;
+      } catch (clientErr: any) {
+          throw new Error("Compression failed: " + (clientErr?.message || clientErr));
       }
   },
   

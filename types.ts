@@ -3,6 +3,7 @@ export type FileType = 'PDF' | 'DOCX' | 'PPTX' | 'JPG' | 'PNG' | 'XLSX' | 'UNKNO
 export interface UploadedFile {
   id: string;
   file: File;
+  name: string;
   previewUrl?: string;
   type: FileType;
   size: number;
@@ -14,6 +15,8 @@ export interface ProcessingResult {
   fileName: string;
   fileSize: string; // formatted
   message?: string;
+  pagesProcessed?: number;
+  extraInfo?: Record<string, unknown>;
 }
 
 export type JobStatus = 'idle' | 'uploading' | 'processing' | 'completed' | 'error';
@@ -44,7 +47,6 @@ declare global {
     confetti: any;
     XLSX: any;
     html2canvas: any;
-    mammoth: any;
     Tesseract: any;
   }
 }

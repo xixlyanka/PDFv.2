@@ -45,6 +45,7 @@ const FileDropzone: React.FC<FileDropzoneProps> = ({
       newFiles.push({
         id: Math.random().toString(36).substring(7),
         file,
+        name: file.name,
         type,
         size: file.size,
         previewUrl: type === 'JPG' || type === 'PNG' ? URL.createObjectURL(file) : undefined,

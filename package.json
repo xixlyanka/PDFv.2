@@ -9,8 +9,6 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "mammoth": "^1.8.0",
-    "pdfkit": "^0.15.2",
     "pdf-lib": "^1.17.1",
     "lucide-react": "^0.559.0",
     "react": "^19.2.1",
@@ -19,7 +17,6 @@
   },
   "devDependencies": {
     "@types/node": "^22.14.0",
-    "@vercel/node": "^5.1.6",
     "@vitejs/plugin-react": "^5.0.0",
     "typescript": "~5.8.2",
     "vite": "^6.2.0"

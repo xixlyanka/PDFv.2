@@ -115,10 +115,11 @@ const RewardedDownload: React.FC<RewardedDownloadProps> = ({ downloadUrl, fileNa
           const response = await fetch(downloadUrl);
           const blob = await response.blob();
           const file = new File([blob], fileName, { type: blob.type });
-          
+
           const uploadedFile: UploadedFile = {
               id: Math.random().toString(36).substring(7),
               file: file,
+              name: file.name,
               type: 'PDF', // Assuming PDF workflow usually
               size: file.size,
               previewUrl: undefined
