@@ -191,14 +191,15 @@ export const docService = {
 
           const arrayBuffer = await response.arrayBuffer();
           const blob = new Blob([arrayBuffer], { type: 'application/pdf' });
-          sendUsageLog('compress', { sizeBefore: file.size, sizeAfter: blob.size, level, mode: 'backend' });
-
-          return {
+          const result = {
               success: true,
               downloadUrl: URL.createObjectURL(blob),
               fileName: `compressed_${file.file.name}`,
               fileSize: formatSize(blob.size),
           };
+
+          sendUsageLog('compress', { sizeBefore: file.size, sizeAfter: blob.size, level, mode: 'backend' });
+          return { result, blobSize: blob.size };
       };
 
       const tryClient = async () => {
@@ -206,8 +207,9 @@ export const docService = {
           if (!window.pdfjsLib) throw new Error("PDF.js engine not loaded");
           if (!window.jspdf) throw new Error("jsPDF engine not loaded");
 
-          const quality = Math.max(0.4, 1 - (level / 140)); // 1 -> 0.4
-          const scale = Math.max(0.55, 1.2 - (level / 120)); // 1.2 -> 0.55
+          // Make the slider noticeably affect size: stronger downscale + JPEG quality floor
+          const quality = Math.max(0.25, 1 - (level / 90)); // 1 -> 0.25
+          const scale = Math.max(0.45, 1.15 - (level / 100)); // 1.15 -> 0.45
 
           const arrayBuffer = await file.file.arrayBuffer();
           const pdf = await window.pdfjsLib.getDocument({ data: arrayBuffer }).promise;
@@ -248,15 +250,24 @@ export const docService = {
           };
 
           sendUsageLog('compress', { sizeBefore: file.size, sizeAfter: blob.size, level, mode: 'client' });
-          return result;
+          return { result, blobSize: blob.size };
       };
 
       try {
-          return await tryBackend();
+          const backend = await tryBackend();
+          // If backend gave no reduction (or even increased size), try the client fallback and pick the smaller output
+          if (backend.blobSize < file.size * 0.98) return backend.result;
+
+          try {
+              const client = await tryClient();
+              return client.blobSize < backend.blobSize ? client.result : backend.result;
+          } catch {
+              return backend.result;
+          }
       } catch (err: any) {
           console.warn('Backend compression failed, falling back to client:', err?.message || err);
           try {
-              return await tryClient();
+              return (await tryClient()).result;
           } catch (clientErr: any) {
               throw new Error("Compression failed: " + (clientErr?.message || clientErr));
           }
