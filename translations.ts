@@ -115,7 +115,7 @@ export const translations = {
     "admin.settings": "Global Settings",
     "admin.monetization": "Monetization",
     "admin.analytics": "Analytics Config",
-    "admin.ga_id": "Google Analytics 4 ID",
+    "admin.ga_id": "Analytics Tracking ID",
     "admin.sitemap": "Generate Sitemap",
   },
   ru: {
@@ -231,7 +231,7 @@ export const translations = {
     "admin.settings": "Настройки",
     "admin.monetization": "Монетизация",
     "admin.analytics": "Настройки Аналитики",
-    "admin.ga_id": "ID Google Analytics 4",
+    "admin.ga_id": "ID системы аналитики",
     "admin.sitemap": "Генератор Sitemap",
   },
   uk: {
@@ -347,7 +347,7 @@ export const translations = {
     "admin.settings": "Налаштування",
     "admin.monetization": "Монетизація",
     "admin.analytics": "Налаштування Аналітики",
-    "admin.ga_id": "ID Google Analytics 4",
+    "admin.ga_id": "ID системи аналітики",
     "admin.sitemap": "Генератор Sitemap",
   },
   // Other languages (es, fr, de) would be similar, updated for Redact
