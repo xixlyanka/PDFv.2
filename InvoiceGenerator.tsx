@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
-import { UploadedFile, ProcessingResult, JobStatus } from '../types';
+import { UploadedFile, ProcessingResult, JobStatus } from '@/types';
 import { FileText, Plus, Trash2, Download, Loader2, ShieldCheck } from 'lucide-react';
-import RewardedDownload from '../components/RewardedDownload';
-import SEO from '../components/SEO';
-import GoogleAd from '../components/GoogleAd';
-import { AD_SLOTS } from '../constants';
-import { useToast } from '../contexts/ToastContext';
+import RewardedDownload from '@/RewardedDownload';
+import SEO from '@/SEO';
+import GoogleAd from '@/GoogleAd';
+import { AD_SLOTS } from '@/constants';
+import { useToast } from '@/ToastContext';
 
 interface InvoiceItem {
     id: number;

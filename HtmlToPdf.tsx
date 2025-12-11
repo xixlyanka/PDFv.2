@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
-import { ProcessingResult, JobStatus } from '../types';
+import { ProcessingResult, JobStatus } from '@/types';
 import { Code, Loader2, AlertCircle, ShieldCheck } from 'lucide-react';
-import { docService } from '../services/docService';
-import RewardedDownload from '../components/RewardedDownload';
-import SEO from '../components/SEO';
-import GoogleAd from '../components/GoogleAd';
-import { AD_SLOTS } from '../constants';
-import { useToast } from '../contexts/ToastContext';
+import { docService } from '@/docService';
+import RewardedDownload from '@/RewardedDownload';
+import SEO from '@/SEO';
+import GoogleAd from '@/GoogleAd';
+import { AD_SLOTS } from '@/constants';
+import { useToast } from '@/ToastContext';
 
 const HtmlToPdf: React.FC = () => {
   const [inputMode, setInputMode] = useState<'html' | 'url'>('html');
