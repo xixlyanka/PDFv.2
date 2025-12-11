@@ -1,6 +1,6 @@
 import React, { useRef, useState, useCallback } from 'react';
 import { UploadCloud, File as FileIcon } from 'lucide-react';
-import { UploadedFile, FileType } from '../types';
+import { UploadedFile, FileType } from '@/types';
 
 interface FileDropzoneProps {
   onFilesSelected: (files: UploadedFile[]) => void;

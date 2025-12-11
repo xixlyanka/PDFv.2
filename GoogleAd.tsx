@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
-import { AdProps } from '../types';
-import { useAdSettings } from '../contexts/AdSettingsContext';
-import { useLanguage } from '../contexts/LanguageContext';
+import { AdProps } from '@/types';
+import { useAdSettings } from '@/AdSettingsContext';
+import { useLanguage } from '@/LanguageContext';
 
 const GoogleAd: React.FC<AdProps> = ({ slot, format = 'auto', responsive = true, className = '' }) => {
   const { showAds } = useAdSettings();

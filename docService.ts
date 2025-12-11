@@ -1,6 +1,6 @@
 
-import { UploadedFile, ProcessingResult } from '../types';
-import { PAPER_SIZES } from '../constants';
+import { UploadedFile, ProcessingResult } from '@/types';
+import { PAPER_SIZES } from '@/constants';
 
 const formatSize = (bytes: number): string => {
   if (bytes === 0) return '0 Bytes';

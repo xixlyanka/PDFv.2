@@ -1,12 +1,12 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
-import { LanguageProvider } from './contexts/LanguageContext';
-import { ThemeProvider } from './contexts/ThemeContext';
-import { AdSettingsProvider } from './contexts/AdSettingsContext';
-import { ToastProvider } from './contexts/ToastContext';
-import { StatsProvider } from './contexts/StatsContext';
-import { FileHandlerProvider } from './contexts/FileHandlerContext';
+import { LanguageProvider } from './LanguageContext';
+import { ThemeProvider } from './ThemeContext';
+import { AdSettingsProvider } from './AdSettingsContext';
+import { ToastProvider } from './ToastContext';
+import { StatsProvider } from './StatsContext';
+import { FileHandlerProvider } from './FileHandlerContext';
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {
