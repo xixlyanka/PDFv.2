@@ -45,6 +45,19 @@ const ensureEnginesLoaded = async () => {
   }
 };
 
+let backendCompressionReady: boolean | null = null;
+const isBackendCompressionReady = async () => {
+  if (backendCompressionReady !== null) return backendCompressionReady;
+  try {
+    const res = await fetch('/api/health');
+    const json = await res.json();
+    backendCompressionReady = Boolean(json?.compress?.configured);
+  } catch {
+    backendCompressionReady = false;
+  }
+  return backendCompressionReady;
+};
+
 export const docService = {
   getRandomLoadingMessage: () => {
     const msgs = ["Processing...", "Almost there...", "Optimizing...", "Saving...", "Merging layers...", "Analyzing structure...", "Rendering pages...", "Applying filters..."];
@@ -176,6 +189,8 @@ export const docService = {
   },
 
   compress: async (file: UploadedFile, level: number): Promise<ProcessingResult> => {
+      const backendAvailable = await isBackendCompressionReady();
+
       const tryBackend = async () => {
           const base64 = await fileToBase64(file.file);
           const response = await fetch('/api/compress', {
@@ -253,25 +268,31 @@ export const docService = {
           return { result, blobSize: blob.size };
       };
 
-      try {
-          const backend = await tryBackend();
-          // If backend gave no reduction (or even increased size), try the client fallback and pick the smaller output
-          if (backend.blobSize < file.size * 0.98) return backend.result;
+      // Prefer backend when configured; otherwise rely on client-only path
+      if (backendAvailable) {
+          try {
+              const backend = await tryBackend();
+              // If backend gave no reduction (or even increased size), try the client fallback and pick the smaller output
+              if (backend.blobSize < file.size * 0.98) return backend.result;
 
-          try {
-              const client = await tryClient();
-              return client.blobSize < backend.blobSize ? client.result : backend.result;
-          } catch {
-              return backend.result;
-          }
-      } catch (err: any) {
-          console.warn('Backend compression failed, falling back to client:', err?.message || err);
-          try {
-              return (await tryClient()).result;
-          } catch (clientErr: any) {
-              throw new Error("Compression failed: " + (clientErr?.message || clientErr));
+              try {
+                  const client = await tryClient();
+                  return client.blobSize < backend.blobSize ? client.result : backend.result;
+              } catch {
+                  return backend.result;
+              }
+          } catch (err: any) {
+              console.warn('Backend compression failed, falling back to client:', err?.message || err);
+              try {
+                  return (await tryClient()).result;
+              } catch (clientErr: any) {
+                  throw new Error("Compression failed: " + (clientErr?.message || clientErr));
+              }
           }
       }
+
+      // Backend disabled or unreachable: run client compression directly
+      return (await tryClient()).result;
   },
   
   generateThumbnail: async (file: File): Promise<string> => {
