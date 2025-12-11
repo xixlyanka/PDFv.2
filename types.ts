@@ -44,6 +44,7 @@ declare global {
     confetti: any;
     XLSX: any;
     html2canvas: any;
+    mammoth: any;
     Tesseract: any;
   }
 }

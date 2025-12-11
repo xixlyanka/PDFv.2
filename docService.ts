@@ -1,6 +1,19 @@
 
-import { UploadedFile, ProcessingResult } from '../types';
-import { PAPER_SIZES } from '../constants';
+import { UploadedFile, ProcessingResult } from '@/types';
+import { PAPER_SIZES } from '@/constants';
+import { enginesReady } from './libInit';
+
+const sendUsageLog = async (event: string, payload: Record<string, any>) => {
+  try {
+    await fetch('/api/log', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ event, ...payload }),
+    });
+  } catch {
+    // best-effort logging, ignore errors
+  }
+};
 
 const formatSize = (bytes: number): string => {
   if (bytes === 0) return '0 Bytes';
@@ -10,6 +23,23 @@ const formatSize = (bytes: number): string => {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 };
 
+const bufferToBase64 = (buffer: ArrayBuffer): string => {
+  const bytes = new Uint8Array(buffer);
+  let binary = '';
+  for (let i = 0; i < bytes.byteLength; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return btoa(binary);
+};
+
+const ensureEnginesLoaded = async () => {
+  try {
+    await enginesReady;
+  } catch (err: any) {
+    throw new Error('Required processing engines did not load: ' + err.message);
+  }
+};
+
 export const docService = {
   getRandomLoadingMessage: () => {
     const msgs = ["Processing...", "Almost there...", "Optimizing...", "Saving...", "Merging layers...", "Analyzing structure...", "Rendering pages...", "Applying filters..."];
@@ -17,6 +47,7 @@ export const docService = {
   },
 
   convert: async (file: UploadedFile, format: string, onProgress?: (msg: string) => void, options?: any): Promise<ProcessingResult> => {
+      await ensureEnginesLoaded();
       // XLSX to PDF
       if (file.type === 'XLSX' && window.XLSX) {
           const arrayBuffer = await file.file.arrayBuffer();
@@ -36,20 +67,57 @@ export const docService = {
           });
           
           const blob = doc.output('blob');
-          return {
+          const result = {
               success: true,
               downloadUrl: URL.createObjectURL(blob),
               fileName: `converted_${file.file.name.split('.')[0]}.pdf`,
               fileSize: formatSize(blob.size)
           };
-      } 
+
+          sendUsageLog('convert', { source: 'xlsx', target: 'pdf', size: file.size, mode: 'client' });
+          return result;
+      }
       // DOCX to PDF
-      else if (file.type === 'DOCX' && window.mammoth) {
-          const arrayBuffer = await file.file.arrayBuffer();
-          const result = await window.mammoth.convertToHtml({ arrayBuffer });
-          const html = result.value;
-          return docService.htmlToPdf(html);
-      } 
+      else if (file.type === 'DOCX') {
+          // Prefer backend conversion for fidelity; fallback to client mammoth
+          try {
+              onProgress?.('Uploading to secure converter...');
+              const arrayBuffer = await file.file.arrayBuffer();
+              const fileData = bufferToBase64(arrayBuffer);
+              const response = await fetch('/api/convert-docx', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ fileName: file.file.name, fileData }),
+              });
+
+              if (!response.ok) {
+                  const message = await response.text();
+                  throw new Error(message || 'Backend conversion failed');
+              }
+
+              const pdfBlob = await response.blob();
+              const result: ProcessingResult = {
+                  success: true,
+                  downloadUrl: URL.createObjectURL(pdfBlob),
+                  fileName: file.file.name.replace(/\.docx$/i, '') + '.pdf',
+                  fileSize: formatSize(pdfBlob.size)
+              };
+
+              sendUsageLog('convert', { source: 'docx', target: 'pdf', size: file.size, mode: 'backend' });
+              return result;
+          } catch (err: any) {
+              if (!window.mammoth) {
+                  throw new Error(err?.message || 'DOCX conversion failed and no client fallback available');
+              }
+              onProgress?.('Falling back to in-browser conversion...');
+              const arrayBuffer = await file.file.arrayBuffer();
+              const result = await window.mammoth.convertToHtml({ arrayBuffer });
+              const html = result.value;
+              const pdf = await docService.htmlToPdf(html);
+              sendUsageLog('convert', { source: 'docx', target: 'pdf', size: file.size, mode: 'client-fallback', error: err?.message });
+              return pdf;
+          }
+      }
       // Image to PDF
       else if ((file.type === 'JPG' || file.type === 'PNG') && format === 'PDF') {
           if (!window.jspdf) throw new Error("PDF Engine not loaded");
@@ -81,17 +149,22 @@ export const docService = {
 
           doc.addImage(file.previewUrl || URL.createObjectURL(file.file), file.type === 'JPG' ? 'JPEG' : 'PNG', x, y, w, h);
           const blob = doc.output('blob');
-          
-          return {
+
+          const result = {
               success: true,
               downloadUrl: URL.createObjectURL(blob),
               fileName: `converted_${file.file.name.split('.')[0]}.pdf`,
               fileSize: formatSize(blob.size)
           };
+
+          sendUsageLog('convert', { source: file.type.toLowerCase(), target: 'pdf', size: file.size, mode: 'client' });
+          return result;
       }
       // PDF to JPG (Uses Extract Images logic essentially, but tailored)
       else if (file.type === 'PDF' && format === 'JPG') {
-          return docService.extractImages(file, onProgress);
+          const result = await docService.extractImages(file, onProgress);
+          sendUsageLog('convert', { source: 'pdf', target: 'jpg', size: file.size, mode: 'client' });
+          return result;
       }
 
       throw new Error("Conversion not supported or engine not loaded.");
@@ -99,22 +172,53 @@ export const docService = {
 
   compress: async (file: UploadedFile, level: number): Promise<ProcessingResult> => {
       try {
-          if (!window.PDFLib) throw new Error("PDF Engine not loaded");
-          const arrayBuffer = await file.file.arrayBuffer();
-          const pdfDoc = await window.PDFLib.PDFDocument.load(arrayBuffer);
-          // PDF-lib doesn't have adjustable compression levels like Ghostscript.
-          // Saving it creates a new optimized structure which often reduces size.
-          // To make "level" meaningful, we could rasterize and degrade quality, but that destroys text.
-          // For a purely client-side tool, standard save() is the safest "lossless" compression.
-          const pdfBytes = await pdfDoc.save();
-          const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+          await ensureEnginesLoaded();
+          if (!window.pdfjsLib) throw new Error("PDF.js engine not loaded");
+          if (!window.jspdf) throw new Error("jsPDF engine not loaded");
 
-          return {
+          const quality = Math.max(0.4, 1 - (level / 140)); // 1 -> 0.4
+          const scale = Math.max(0.55, 1.2 - (level / 120)); // 1.2 -> 0.55
+
+          const arrayBuffer = await file.file.arrayBuffer();
+          const pdf = await window.pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+
+          let doc: any = null;
+
+          for (let i = 1; i <= pdf.numPages; i++) {
+              const page = await pdf.getPage(i);
+              const viewport = page.getViewport({ scale });
+              const canvas = document.createElement('canvas');
+              const context = canvas.getContext('2d');
+              canvas.width = viewport.width;
+              canvas.height = viewport.height;
+
+              await page.render({ canvasContext: context, viewport }).promise;
+              const imgData = canvas.toDataURL('image/jpeg', quality);
+
+              const orientation = viewport.width > viewport.height ? 'landscape' : 'portrait';
+              const format: [number, number] = [viewport.width, viewport.height];
+
+              if (i === 1) {
+                  const { jsPDF } = window.jspdf;
+                  doc = new jsPDF({ unit: 'px', format, orientation });
+              } else {
+                  doc.addPage(format, orientation);
+              }
+
+              doc.addImage(imgData, 'JPEG', 0, 0, viewport.width, viewport.height);
+          }
+
+          const blob = doc.output('blob');
+
+          const result = {
               success: true,
               downloadUrl: URL.createObjectURL(blob),
               fileName: `compressed_${file.file.name}`,
               fileSize: formatSize(blob.size)
           };
+
+          sendUsageLog('compress', { sizeBefore: file.size, sizeAfter: blob.size, level });
+          return result;
       } catch (err: any) {
           throw new Error("Compression failed: " + err.message);
       }
@@ -122,6 +226,7 @@ export const docService = {
   
   generateThumbnail: async (file: File): Promise<string> => {
       try {
+          await ensureEnginesLoaded();
           if (file.type !== 'application/pdf') return "";
           if (!window.pdfjsLib) return "";
           const arrayBuffer = await file.arrayBuffer();
@@ -139,6 +244,7 @@ export const docService = {
 
   merge: async (files: UploadedFile[], normalize: boolean): Promise<ProcessingResult> => {
       try {
+          await ensureEnginesLoaded();
           if (!window.PDFLib) throw new Error("PDF Engine not loaded");
           const { PDFDocument, PageSizes } = window.PDFLib;
           const mergedPdf = await PDFDocument.create();
@@ -177,6 +283,7 @@ export const docService = {
 
   split: async (file: UploadedFile, options: any, onProgress?: (msg: string) => void): Promise<ProcessingResult> => {
       try {
+          await ensureEnginesLoaded();
           if (!window.PDFLib) throw new Error("PDF Engine not loaded");
           const arrayBuffer = await file.file.arrayBuffer();
           const pdfDoc = await window.PDFLib.PDFDocument.load(arrayBuffer);
@@ -221,6 +328,7 @@ export const docService = {
 
   rotate: async (file: UploadedFile, rotation: number): Promise<ProcessingResult> => {
       try {
+          await ensureEnginesLoaded();
           if (!window.PDFLib) throw new Error("PDF Engine not loaded");
           const arrayBuffer = await file.file.arrayBuffer();
           const pdfDoc = await window.PDFLib.PDFDocument.load(arrayBuffer);
@@ -237,6 +345,7 @@ export const docService = {
 
   addWatermark: async (file: UploadedFile, text: string, options: any): Promise<ProcessingResult> => {
       try {
+          await ensureEnginesLoaded();
           if (!window.PDFLib) throw new Error("PDF Engine not loaded");
           const arrayBuffer = await file.file.arrayBuffer();
           const pdfDoc = await window.PDFLib.PDFDocument.load(arrayBuffer);
@@ -273,6 +382,7 @@ export const docService = {
 
   resize: async (file: UploadedFile, options: any, onProgress?: (msg: string) => void): Promise<ProcessingResult> => {
       try {
+          await ensureEnginesLoaded();
           if (!window.PDFLib) throw new Error("PDF Engine not loaded");
           const { PDFDocument } = window.PDFLib;
           
@@ -327,6 +437,7 @@ export const docService = {
 
   crop: async (file: UploadedFile, margins: { top: number, bottom: number, left: number, right: number }): Promise<ProcessingResult> => {
       try {
+          await ensureEnginesLoaded();
           if (!window.PDFLib) throw new Error("PDF Engine not loaded");
           const arrayBuffer = await file.file.arrayBuffer();
           const pdfDoc = await window.PDFLib.PDFDocument.load(arrayBuffer);
@@ -352,6 +463,7 @@ export const docService = {
   },
 
   getPDFPageCount: async (file: File): Promise<number> => {
+      await ensureEnginesLoaded();
       if (!window.pdfjsLib) return 0;
       const arrayBuffer = await file.arrayBuffer();
       const pdf = await window.pdfjsLib.getDocument(arrayBuffer).promise;
@@ -359,6 +471,7 @@ export const docService = {
   },
 
   getPageThumbnail: async (file: File, pageIndex: number): Promise<string> => {
+      await ensureEnginesLoaded();
       if (!window.pdfjsLib) return "";
       const arrayBuffer = await file.arrayBuffer();
       const pdf = await window.pdfjsLib.getDocument(arrayBuffer).promise;
