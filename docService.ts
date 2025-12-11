@@ -32,6 +32,11 @@ const bufferToBase64 = (buffer: ArrayBuffer): string => {
   return btoa(binary);
 };
 
+const fileToBase64 = async (file: File) => {
+  const arrayBuffer = await file.arrayBuffer();
+  return bufferToBase64(arrayBuffer);
+};
+
 const ensureEnginesLoaded = async () => {
   try {
     await enginesReady;
@@ -171,7 +176,32 @@ export const docService = {
   },
 
   compress: async (file: UploadedFile, level: number): Promise<ProcessingResult> => {
-      try {
+      const tryBackend = async () => {
+          const base64 = await fileToBase64(file.file);
+          const response = await fetch('/api/compress', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ fileName: file.file.name, fileData: base64, level }),
+          });
+
+          if (!response.ok) {
+              const errBody = await response.json().catch(() => ({}));
+              throw new Error(errBody?.error || 'Backend compression failed');
+          }
+
+          const arrayBuffer = await response.arrayBuffer();
+          const blob = new Blob([arrayBuffer], { type: 'application/pdf' });
+          sendUsageLog('compress', { sizeBefore: file.size, sizeAfter: blob.size, level, mode: 'backend' });
+
+          return {
+              success: true,
+              downloadUrl: URL.createObjectURL(blob),
+              fileName: `compressed_${file.file.name}`,
+              fileSize: formatSize(blob.size),
+          };
+      };
+
+      const tryClient = async () => {
           await ensureEnginesLoaded();
           if (!window.pdfjsLib) throw new Error("PDF.js engine not loaded");
           if (!window.jspdf) throw new Error("jsPDF engine not loaded");
@@ -217,10 +247,19 @@ export const docService = {
               fileSize: formatSize(blob.size)
           };
 
-          sendUsageLog('compress', { sizeBefore: file.size, sizeAfter: blob.size, level });
+          sendUsageLog('compress', { sizeBefore: file.size, sizeAfter: blob.size, level, mode: 'client' });
           return result;
+      };
+
+      try {
+          return await tryBackend();
       } catch (err: any) {
-          throw new Error("Compression failed: " + err.message);
+          console.warn('Backend compression failed, falling back to client:', err?.message || err);
+          try {
+              return await tryClient();
+          } catch (clientErr: any) {
+              throw new Error("Compression failed: " + (clientErr?.message || clientErr));
+          }
       }
   },
   
