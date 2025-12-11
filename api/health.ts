@@ -1,21 +1,19 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
 export default async function handler(_req: VercelRequest, res: VercelResponse) {
-  const docxReady = Boolean(process.env.DOCX_CONVERT_API_SECRET);
-  const compressReady = Boolean(process.env.CLOUDCONVERT_API_KEY);
+  const docxReady = true;
+  const compressReady = true;
 
   res.status(200).json({
     ok: docxReady && compressReady,
     docx: {
       configured: docxReady,
-      env: 'DOCX_CONVERT_API_SECRET',
+      env: null,
     },
     compress: {
       configured: compressReady,
-      env: 'CLOUDCONVERT_API_KEY',
+      env: null,
     },
-    notes: docxReady && compressReady
-      ? 'Backend endpoints are configured for DOCX->PDF and compression.'
-      : 'Missing keys will cause server endpoints to return 500; client fallbacks remain available.',
+    notes: 'Backend endpoints are self contained and do not require external keys.',
   });
 }
