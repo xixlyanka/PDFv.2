@@ -47,3 +47,13 @@ View your app in AI Studio: https://ai.studio/apps/drive/1Wgs8hbFDdKuV0VrIKVvQ30
 - Создайте переменную среды `DOCX_CONVERT_API_SECRET` — секрет для ConvertAPI или совместимого сервиса. Опционально можно указать `DOCX_CONVERT_API_ENDPOINT`, если требуется другой URL.
 - Эндпоинты размещены в `api/`, поэтому при деплое на Vercel будут работать как serverless-функции. Фронтенд вызывает `/api/convert-docx` для DOCX → PDF, что снимает нагрузку с браузера.
 - Для сжатия укажите `CLOUDCONVERT_API_KEY`, чтобы `/api/compress` мог отправлять задания в CloudConvert. При отсутствии ключа фронтенд просто использует клиентский компрессор.
+
+## Что нужно для работы бэкенда
+
+- **Переменные среды**: минимум `DOCX_CONVERT_API_SECRET` и `CLOUDCONVERT_API_KEY` (для CloudConvert). При необходимости переопределите `DOCX_CONVERT_API_ENDPOINT` на свой провайдер DOCX → PDF.
+- **Лимит загрузки**: serverless-функции принимают файлы до ~25 МБ (см. `api/*.ts` `bodyParser.sizeLimit`). Более крупные файлы нужно обрабатывать через альтернативный сервис или менять лимит.
+- **Проверка на Vercel**: внесите ключи в раздел *Project Settings → Environment Variables* и сделайте повторный деплой. Если переменная отсутствует, эндпоинт вернёт 500 с явным сообщением (например, `CLOUDCONVERT_API_KEY is not configured`).
+- **Быстрый тест локально**:
+  - Запустите `npm run dev`, затем отправьте POST на `http://localhost:5173/api/convert-docx` с `fileName` и `fileData` (base64 DOCX) — в ответ придёт PDF.
+  - Аналогично проверьте `http://localhost:5173/api/compress` с `fileName`, `fileData` и опциональным `level` (0–100); при успехе вернётся сжатый PDF.
+- **Логирование действий**: `/api/log` пишет usage‑события в `/tmp/usage-log.jsonl` на каждой функции. Файл живёт в рамках выполнения функции; для постоянного хранения подключите внешнюю БД (например, Supabase) или S3‑совместимое хранилище.
