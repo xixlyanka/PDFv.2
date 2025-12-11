@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
-import { APP_NAME } from '../constants';
-import { useLanguage } from '../contexts/LanguageContext';
+import { APP_NAME } from '@/constants';
+import { useLanguage } from '@/LanguageContext';
 import { useLocation } from 'react-router-dom';
 
 interface SEOProps {
