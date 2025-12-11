@@ -57,3 +57,7 @@ View your app in AI Studio: https://ai.studio/apps/drive/1Wgs8hbFDdKuV0VrIKVvQ30
   - Запустите `npm run dev`, затем отправьте POST на `http://localhost:5173/api/convert-docx` с `fileName` и `fileData` (base64 DOCX) — в ответ придёт PDF.
   - Аналогично проверьте `http://localhost:5173/api/compress` с `fileName`, `fileData` и опциональным `level` (0–100); при успехе вернётся сжатый PDF.
 - **Логирование действий**: `/api/log` пишет usage‑события в `/tmp/usage-log.jsonl` на каждой функции. Файл живёт в рамках выполнения функции; для постоянного хранения подключите внешнюю БД (например, Supabase) или S3‑совместимое хранилище.
+
+### Быстрая проверка конфигурации
+
+- Вызовите `GET /api/health` локально или на проде — в ответе будет видно, выставлены ли `DOCX_CONVERT_API_SECRET` и `CLOUDCONVERT_API_KEY`. Если какого-то ключа нет, эндпоинты `/api/convert-docx` и `/api/compress` вернут 500 (фронт при этом откатится на клиентские реализации).
