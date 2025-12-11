@@ -1,16 +1,16 @@
 
 import React, { useState } from 'react';
-import { UploadedFile, ProcessingResult, JobStatus } from '../types';
-import FileDropzone from '../components/FileDropzone';
+import { UploadedFile, ProcessingResult, JobStatus } from '@/types';
+import FileDropzone from '@/FileDropzone';
 import { Archive, Loader2, AlertCircle, FileText, ShieldCheck } from 'lucide-react';
-import { docService } from '../services/docService';
-import RewardedDownload from '../components/RewardedDownload';
-import SEO from '../components/SEO';
-import GoogleAd from '../components/GoogleAd';
-import { AD_SLOTS } from '../constants';
-import { useToast } from '../contexts/ToastContext';
-import { useAdSettings } from '../contexts/AdSettingsContext';
-import { useLanguage } from '../contexts/LanguageContext';
+import { docService } from '@/docService';
+import RewardedDownload from '@/RewardedDownload';
+import SEO from '@/SEO';
+import GoogleAd from '@/GoogleAd';
+import { AD_SLOTS } from '@/constants';
+import { useToast } from '@/ToastContext';
+import { useAdSettings } from '@/AdSettingsContext';
+import { useLanguage } from '@/LanguageContext';
 
 const PdfToPdfA: React.FC = () => {
   const [file, setFile] = useState<UploadedFile | null>(null);
@@ -47,14 +47,17 @@ const PdfToPdfA: React.FC = () => {
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-20">
-      <SEO 
-        title="PDF to PDF/A" 
-        description="Convert PDF documents to PDF/A format for long-term archiving and ISO compliance."
+      <SEO
+        title="PDF to PDF/A"
+        description="Convert PDF documents to PDF/A format via server processing for stability."
       />
       
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className={showAds ? "lg:col-span-2" : "lg:col-span-3"}>
             <div className="text-center lg:text-left mb-8">
+                <div className="flex items-center gap-3 justify-center lg:justify-start mb-3">
+                  <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-200">Server-side</span>
+                </div>
                 <h1 className="text-3xl font-bold text-gray-900 dark:text-white sm:text-4xl">PDF to PDF/A</h1>
                 <p className="mt-3 text-lg text-gray-500 dark:text-gray-400">Convert documents to ISO standard for long-term preservation.</p>
             </div>
@@ -62,8 +65,8 @@ const PdfToPdfA: React.FC = () => {
             <div className="mb-6 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4 flex items-start gap-3">
                 <ShieldCheck className="w-5 h-5 text-green-700 dark:text-green-400 flex-shrink-0 mt-0.5" />
                 <div>
-                <h4 className="text-sm font-bold text-green-800 dark:text-green-400">Standard Compliance</h4>
-                <p className="text-sm text-green-700 dark:text-green-300">We add necessary metadata to mark your file as PDF/A-1b compliant.</p>
+                <h4 className="text-sm font-bold text-green-800 dark:text-green-400">Server-side processing</h4>
+                <p className="text-sm text-green-700 dark:text-green-300">This tool uses secure server-side processing. Файл отправляется на endpoint, пересохраняется для совместимости PDF/A и сразу удаляется после ответа.</p>
                 </div>
             </div>
 

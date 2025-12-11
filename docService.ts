@@ -1,6 +1,7 @@
 
-import { UploadedFile, ProcessingResult } from '../types';
-import { PAPER_SIZES } from '../constants';
+import { UploadedFile, ProcessingResult } from '@/types';
+import { PAPER_SIZES } from '@/constants';
+import { enginesReady } from './libInit';
 
 const formatSize = (bytes: number): string => {
   if (bytes === 0) return '0 Bytes';
@@ -10,6 +11,51 @@ const formatSize = (bytes: number): string => {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 };
 
+const postFileToApi = async (
+  endpoint: string,
+  file: UploadedFile,
+  extra?: Record<string, string | number>
+): Promise<ProcessingResult> => {
+  const form = new FormData();
+  form.append('file', file.file, file.name || file.file.name);
+  if (extra) {
+    Object.entries(extra).forEach(([key, value]) => form.append(key, String(value)));
+  }
+
+  const res = await fetch(endpoint, { method: 'POST', body: form });
+  if (!res.ok) {
+    let msg = 'Server processing failed';
+    try {
+      const data = await res.json();
+      if (data.error) msg = data.error;
+    } catch {}
+    throw new Error(msg);
+  }
+
+  const blob = await res.blob();
+  const disposition = res.headers.get('Content-Disposition');
+  let filename = `result_${file.file.name}`;
+  if (disposition && disposition.includes('filename=')) {
+    const match = disposition.match(/filename="?([^";]+)"?/);
+    if (match?.[1]) filename = match[1];
+  }
+
+  return {
+    success: true,
+    downloadUrl: URL.createObjectURL(blob),
+    fileName: filename,
+    fileSize: formatSize(blob.size),
+  };
+};
+
+const ensureEnginesLoaded = async () => {
+  try {
+    await enginesReady;
+  } catch (err: any) {
+    throw new Error('Required processing engines did not load: ' + err.message);
+  }
+};
+
 export const docService = {
   getRandomLoadingMessage: () => {
     const msgs = ["Processing...", "Almost there...", "Optimizing...", "Saving...", "Merging layers...", "Analyzing structure...", "Rendering pages...", "Applying filters..."];
@@ -17,39 +63,11 @@ export const docService = {
   },
 
   convert: async (file: UploadedFile, format: string, onProgress?: (msg: string) => void, options?: any): Promise<ProcessingResult> => {
-      // XLSX to PDF
-      if (file.type === 'XLSX' && window.XLSX) {
-          const arrayBuffer = await file.file.arrayBuffer();
-          const workbook = window.XLSX.read(arrayBuffer);
-          const firstSheetName = workbook.SheetNames[0];
-          const worksheet = workbook.Sheets[firstSheetName];
-          const jsonData = window.XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-          
-          if (!window.jspdf) throw new Error("PDF Engine not loaded");
-          const { jsPDF } = window.jspdf;
-          const doc = new jsPDF();
-          let y = 10;
-          jsonData.forEach((row: any[]) => {
-              doc.text(row.join('  '), 10, y);
-              y += 10;
-              if (y > 280) { doc.addPage(); y = 10; }
-          });
-          
-          const blob = doc.output('blob');
-          return {
-              success: true,
-              downloadUrl: URL.createObjectURL(blob),
-              fileName: `converted_${file.file.name.split('.')[0]}.pdf`,
-              fileSize: formatSize(blob.size)
-          };
-      } 
-      // DOCX to PDF
-      else if (file.type === 'DOCX' && window.mammoth) {
-          const arrayBuffer = await file.file.arrayBuffer();
-          const result = await window.mammoth.convertToHtml({ arrayBuffer });
-          const html = result.value;
-          return docService.htmlToPdf(html);
-      } 
+      await ensureEnginesLoaded();
+
+      if ((file.type === 'DOCX' || file.type === 'XLSX') && format === 'PDF') {
+          return postFileToApi('/api/convert-docx', file, { format });
+      }
       // Image to PDF
       else if ((file.type === 'JPG' || file.type === 'PNG') && format === 'PDF') {
           if (!window.jspdf) throw new Error("PDF Engine not loaded");
@@ -81,17 +99,20 @@ export const docService = {
 
           doc.addImage(file.previewUrl || URL.createObjectURL(file.file), file.type === 'JPG' ? 'JPEG' : 'PNG', x, y, w, h);
           const blob = doc.output('blob');
-          
-          return {
+
+          const result = {
               success: true,
               downloadUrl: URL.createObjectURL(blob),
               fileName: `converted_${file.file.name.split('.')[0]}.pdf`,
               fileSize: formatSize(blob.size)
           };
+
+          return result;
       }
       // PDF to JPG (Uses Extract Images logic essentially, but tailored)
       else if (file.type === 'PDF' && format === 'JPG') {
-          return docService.extractImages(file, onProgress);
+          const result = await docService.extractImages(file, onProgress);
+          return result;
       }
 
       throw new Error("Conversion not supported or engine not loaded.");
@@ -99,29 +120,58 @@ export const docService = {
 
   compress: async (file: UploadedFile, level: number): Promise<ProcessingResult> => {
       try {
-          if (!window.PDFLib) throw new Error("PDF Engine not loaded");
-          const arrayBuffer = await file.file.arrayBuffer();
-          const pdfDoc = await window.PDFLib.PDFDocument.load(arrayBuffer);
-          // PDF-lib doesn't have adjustable compression levels like Ghostscript.
-          // Saving it creates a new optimized structure which often reduces size.
-          // To make "level" meaningful, we could rasterize and degrade quality, but that destroys text.
-          // For a purely client-side tool, standard save() is the safest "lossless" compression.
-          const pdfBytes = await pdfDoc.save();
-          const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+          return await postFileToApi('/api/compress', file, { level });
+      } catch (serverError: any) {
+          const tryClient = async () => {
+              await ensureEnginesLoaded();
+              if (!window.pdfjsLib) throw new Error("PDF.js engine not loaded");
+              if (!window.jspdf) throw new Error("jsPDF engine not loaded");
 
-          return {
-              success: true,
-              downloadUrl: URL.createObjectURL(blob),
-              fileName: `compressed_${file.file.name}`,
-              fileSize: formatSize(blob.size)
+              const quality = Math.max(0.25, 1 - (level / 90));
+              const scale = Math.max(0.45, 1.15 - (level / 100));
+
+              const arrayBuffer = await file.file.arrayBuffer();
+              const pdf = await window.pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+              let doc: any = null;
+
+              for (let i = 1; i <= pdf.numPages; i++) {
+                  const page = await pdf.getPage(i);
+                  const viewport = page.getViewport({ scale });
+                  const canvas = document.createElement('canvas');
+                  const context = canvas.getContext('2d');
+                  canvas.width = viewport.width;
+                  canvas.height = viewport.height;
+                  await page.render({ canvasContext: context, viewport }).promise;
+                  const imgData = canvas.toDataURL('image/jpeg', quality);
+                  const orientation = viewport.width > viewport.height ? 'landscape' : 'portrait';
+                  const format: [number, number] = [viewport.width, viewport.height];
+
+                  if (i === 1) {
+                      const { jsPDF } = window.jspdf;
+                      doc = new jsPDF({ unit: 'px', format, orientation });
+                  } else {
+                      doc.addPage(format, orientation);
+                  }
+
+                  doc.addImage(imgData, 'JPEG', 0, 0, viewport.width, viewport.height);
+              }
+
+              const blob = doc.output('blob');
+              return {
+                  success: true,
+                  downloadUrl: URL.createObjectURL(blob),
+                  fileName: `compressed_${file.file.name}`,
+                  fileSize: formatSize(blob.size)
+              };
           };
-      } catch (err: any) {
-          throw new Error("Compression failed: " + err.message);
+
+          return await tryClient();
       }
   },
   
   generateThumbnail: async (file: File): Promise<string> => {
       try {
+          await ensureEnginesLoaded();
           if (file.type !== 'application/pdf') return "";
           if (!window.pdfjsLib) return "";
           const arrayBuffer = await file.arrayBuffer();
@@ -139,6 +189,7 @@ export const docService = {
 
   merge: async (files: UploadedFile[], normalize: boolean): Promise<ProcessingResult> => {
       try {
+          await ensureEnginesLoaded();
           if (!window.PDFLib) throw new Error("PDF Engine not loaded");
           const { PDFDocument, PageSizes } = window.PDFLib;
           const mergedPdf = await PDFDocument.create();
@@ -177,6 +228,7 @@ export const docService = {
 
   split: async (file: UploadedFile, options: any, onProgress?: (msg: string) => void): Promise<ProcessingResult> => {
       try {
+          await ensureEnginesLoaded();
           if (!window.PDFLib) throw new Error("PDF Engine not loaded");
           const arrayBuffer = await file.file.arrayBuffer();
           const pdfDoc = await window.PDFLib.PDFDocument.load(arrayBuffer);
@@ -221,6 +273,7 @@ export const docService = {
 
   rotate: async (file: UploadedFile, rotation: number): Promise<ProcessingResult> => {
       try {
+          await ensureEnginesLoaded();
           if (!window.PDFLib) throw new Error("PDF Engine not loaded");
           const arrayBuffer = await file.file.arrayBuffer();
           const pdfDoc = await window.PDFLib.PDFDocument.load(arrayBuffer);
@@ -237,6 +290,7 @@ export const docService = {
 
   addWatermark: async (file: UploadedFile, text: string, options: any): Promise<ProcessingResult> => {
       try {
+          await ensureEnginesLoaded();
           if (!window.PDFLib) throw new Error("PDF Engine not loaded");
           const arrayBuffer = await file.file.arrayBuffer();
           const pdfDoc = await window.PDFLib.PDFDocument.load(arrayBuffer);
@@ -273,6 +327,7 @@ export const docService = {
 
   resize: async (file: UploadedFile, options: any, onProgress?: (msg: string) => void): Promise<ProcessingResult> => {
       try {
+          await ensureEnginesLoaded();
           if (!window.PDFLib) throw new Error("PDF Engine not loaded");
           const { PDFDocument } = window.PDFLib;
           
@@ -327,6 +382,7 @@ export const docService = {
 
   crop: async (file: UploadedFile, margins: { top: number, bottom: number, left: number, right: number }): Promise<ProcessingResult> => {
       try {
+          await ensureEnginesLoaded();
           if (!window.PDFLib) throw new Error("PDF Engine not loaded");
           const arrayBuffer = await file.file.arrayBuffer();
           const pdfDoc = await window.PDFLib.PDFDocument.load(arrayBuffer);
@@ -352,6 +408,7 @@ export const docService = {
   },
 
   getPDFPageCount: async (file: File): Promise<number> => {
+      await ensureEnginesLoaded();
       if (!window.pdfjsLib) return 0;
       const arrayBuffer = await file.arrayBuffer();
       const pdf = await window.pdfjsLib.getDocument(arrayBuffer).promise;
@@ -359,6 +416,7 @@ export const docService = {
   },
 
   getPageThumbnail: async (file: File, pageIndex: number): Promise<string> => {
+      await ensureEnginesLoaded();
       if (!window.pdfjsLib) return "";
       const arrayBuffer = await file.arrayBuffer();
       const pdf = await window.pdfjsLib.getDocument(arrayBuffer).promise;
@@ -527,10 +585,11 @@ export const docService = {
       } catch (err: any) { throw new Error("Grayscale failed: " + err.message); }
   },
 
-  ocr: async (file: UploadedFile, lang: string, onProgress?: (msg: string) => void): Promise<ProcessingResult> => {
+  ocr: async (file: UploadedFile, lang: string, mode: 'local' | 'server' = 'local', onProgress?: (msg: string) => void): Promise<ProcessingResult> => {
+      if (mode === 'server') {
+          return postFileToApi('/api/ocr', file, { lang });
+      }
       if (!window.Tesseract) throw new Error("OCR Engine not loaded");
-      // Use thumbnail generator for first page for demo speed, or loop all pages for full text
-      // For this implementation, we'll do the first page to keep it responsive.
       const thumb = await docService.generateThumbnail(file.file);
       const result = await window.Tesseract.recognize(thumb, lang, { logger: (m: any) => onProgress && onProgress(m.status) });
       const blob = new Blob([result.data.text], { type: 'text/plain' });
@@ -589,8 +648,19 @@ export const docService = {
     } catch (err: any) { throw new Error("Failed to save metadata: " + err.message); }
   },
 
-  htmlToPdf: async (htmlContent: string, isUrl: boolean = false): Promise<ProcessingResult> => {
+  htmlToPdf: async (htmlContent: string, isUrl: boolean = false, options?: { mode?: 'client' | 'server' }): Promise<ProcessingResult> => {
       try {
+          if (options?.mode === 'server') {
+              const blob = new Blob([htmlContent], { type: 'text/html' });
+              const pseudoFile: UploadedFile = {
+                  id: 'html',
+                  file: new File([blob], 'html-export.html', { type: 'text/html' }),
+                  name: 'html-export.html',
+                  type: 'PDF',
+                  size: blob.size
+              } as UploadedFile;
+              return postFileToApi('/api/html-to-pdf', pseudoFile, { html: htmlContent });
+          }
           if (!window.html2canvas) throw new Error("Rendering engine not loaded");
           if (!window.jspdf) throw new Error("PDF Engine not loaded");
           const container = document.createElement('div');
@@ -615,12 +685,7 @@ export const docService = {
 
   convertToPdfA: async (file: UploadedFile): Promise<ProcessingResult> => {
       try {
-          if (!window.PDFLib) throw new Error("PDF Engine not loaded");
-          const arrayBuffer = await file.file.arrayBuffer();
-          const pdfDoc = await window.PDFLib.PDFDocument.load(arrayBuffer);
-          const pdfBytes = await pdfDoc.save();
-          const blob = new Blob([pdfBytes], { type: 'application/pdf' });
-          return { success: true, downloadUrl: URL.createObjectURL(blob), fileName: `pdfa_${file.file.name}`, fileSize: formatSize(blob.size) };
+          return await postFileToApi('/api/pdfa', file);
       } catch (err: any) { throw new Error("PDF/A Conversion failed: " + err.message); }
   },
 
