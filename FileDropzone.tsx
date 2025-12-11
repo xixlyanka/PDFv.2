@@ -1,6 +1,6 @@
 import React, { useRef, useState, useCallback } from 'react';
 import { UploadCloud, File as FileIcon } from 'lucide-react';
-import { UploadedFile, FileType } from '../types';
+import { UploadedFile, FileType } from '@/types';
 
 interface FileDropzoneProps {
   onFilesSelected: (files: UploadedFile[]) => void;
@@ -45,6 +45,7 @@ const FileDropzone: React.FC<FileDropzoneProps> = ({
       newFiles.push({
         id: Math.random().toString(36).substring(7),
         file,
+        name: file.name,
         type,
         size: file.size,
         previewUrl: type === 'JPG' || type === 'PNG' ? URL.createObjectURL(file) : undefined,

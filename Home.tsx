@@ -3,14 +3,14 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Zap, Minimize2, Layers, ArrowRight, ShieldCheck, Scissors, RotateCw, Stamp, Maximize, LayoutGrid, Lock, Unlock, Hash, Wrench, PenTool, Monitor, ScanText, Image as ImageIcon, Tags, Code, Archive, FileText, Clock } from 'lucide-react';
-import { ROUTES, AD_SLOTS } from '../constants';
-import SEO from '../components/SEO';
-import TiltCard from '../components/TiltCard';
-import GoogleAd from '../components/GoogleAd';
-import { useLanguage } from '../contexts/LanguageContext';
-import { useAdSettings } from '../contexts/AdSettingsContext';
-import { translations } from '../translations';
-import { useStats } from '../contexts/StatsContext';
+import { ROUTES, AD_SLOTS } from '@/constants';
+import SEO from '@/SEO';
+import TiltCard from '@/TiltCard';
+import GoogleAd from '@/GoogleAd';
+import { useLanguage } from '@/LanguageContext';
+import { useAdSettings } from '@/AdSettingsContext';
+import { translations } from '@/translations';
+import { useStats } from '@/StatsContext';
 
 const Home: React.FC = () => {
   const { t } = useLanguage();

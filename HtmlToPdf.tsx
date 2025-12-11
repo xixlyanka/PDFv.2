@@ -1,16 +1,17 @@
 import React, { useState } from 'react';
-import { ProcessingResult, JobStatus } from '../types';
+import { ProcessingResult, JobStatus } from '@/types';
 import { Code, Loader2, AlertCircle, ShieldCheck } from 'lucide-react';
-import { docService } from '../services/docService';
-import RewardedDownload from '../components/RewardedDownload';
-import SEO from '../components/SEO';
-import GoogleAd from '../components/GoogleAd';
-import { AD_SLOTS } from '../constants';
-import { useToast } from '../contexts/ToastContext';
+import { docService } from '@/docService';
+import RewardedDownload from '@/RewardedDownload';
+import SEO from '@/SEO';
+import GoogleAd from '@/GoogleAd';
+import { AD_SLOTS } from '@/constants';
+import { useToast } from '@/ToastContext';
 
 const HtmlToPdf: React.FC = () => {
   const [inputMode, setInputMode] = useState<'html' | 'url'>('html');
   const [content, setContent] = useState('');
+  const [renderMode, setRenderMode] = useState<'client' | 'server'>('client');
   const [status, setStatus] = useState<JobStatus>('idle');
   const [result, setResult] = useState<ProcessingResult | null>(null);
   const { addToast } = useToast();
@@ -23,7 +24,7 @@ const HtmlToPdf: React.FC = () => {
 
     setStatus('processing');
     try {
-      const res = await docService.htmlToPdf(content, inputMode === 'url');
+      const res = await docService.htmlToPdf(content, inputMode === 'url', { mode: renderMode });
       setResult(res);
       setStatus('completed');
     } catch (e: any) {
@@ -42,6 +43,10 @@ const HtmlToPdf: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2">
             <div className="text-center lg:text-left mb-8">
+                <div className="flex items-center gap-3 justify-center lg:justify-start mb-3">
+                  <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-200">Client basic</span>
+                  <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-200">Server raster</span>
+                </div>
                 <h1 className="text-3xl font-bold text-gray-900 dark:text-white sm:text-4xl">HTML to PDF</h1>
                 <p className="mt-3 text-lg text-gray-500 dark:text-gray-400">Render raw HTML code into a document.</p>
             </div>
@@ -49,8 +54,8 @@ const HtmlToPdf: React.FC = () => {
             <div className="mb-6 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4 flex items-start gap-3">
                 <ShieldCheck className="w-5 h-5 text-green-700 dark:text-green-400 flex-shrink-0 mt-0.5" />
                 <div>
-                <h4 className="text-sm font-bold text-green-800 dark:text-green-400">Local Rendering</h4>
-                <p className="text-sm text-green-700 dark:text-green-300">We render the HTML using an invisible canvas in your browser.</p>
+                <h4 className="text-sm font-bold text-green-800 dark:text-green-400">{renderMode === 'server' ? 'Server-side processing' : 'Local rendering'}</h4>
+                <p className="text-sm text-green-700 dark:text-green-300">{renderMode === 'server' ? 'This tool uses secure server-side processing. Files are sent to our endpoint, processed immediately, and never stored.' : 'We render the HTML using an invisible canvas directly in your browser. No uploads for basic mode.'}</p>
                 </div>
             </div>
 
@@ -59,19 +64,32 @@ const HtmlToPdf: React.FC = () => {
                     
                     {status === 'idle' && (
                         <div className="space-y-4">
-                            <div className="flex space-x-4 mb-4">
-                                <button 
+                            <div className="flex flex-wrap gap-3 mb-4">
+                                <button
                                     onClick={() => setInputMode('html')}
                                     className={`px-4 py-2 rounded-lg text-sm font-medium ${inputMode === 'html' ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-400' : 'bg-gray-100 text-gray-600 dark:bg-slate-800 dark:text-gray-400'}`}
                                 >
                                     Raw HTML
                                 </button>
-                                <button 
+                                <button
                                     onClick={() => setInputMode('url')}
-                                    className={`px-4 py-2 rounded-lg text-sm font-medium opacity-50 cursor-not-allowed bg-gray-100 text-gray-400 dark:bg-slate-800`}
-                                    title="Disabled due to CORS restrictions in browser-only mode"
+                                    className={`px-4 py-2 rounded-lg text-sm font-medium ${inputMode === 'url' ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-400' : 'bg-gray-100 text-gray-600 dark:bg-slate-800 dark:text-gray-400'}`}
+                                    disabled={renderMode === 'client'}
+                                    title={renderMode === 'client' ? 'URL rendering needs server mode' : ''}
                                 >
-                                    URL (Server required)
+                                    URL (server mode)
+                                </button>
+                                <button
+                                    onClick={() => setRenderMode('client')}
+                                    className={`px-4 py-2 rounded-lg text-sm font-medium ${renderMode === 'client' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-200' : 'bg-gray-100 text-gray-600 dark:bg-slate-800 dark:text-gray-400'}`}
+                                >
+                                    Basic (browser)
+                                </button>
+                                <button
+                                    onClick={() => setRenderMode('server')}
+                                    className={`px-4 py-2 rounded-lg text-sm font-medium ${renderMode === 'server' ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-200' : 'bg-gray-100 text-gray-600 dark:bg-slate-800 dark:text-gray-400'}`}
+                                >
+                                    Pro (server)
                                 </button>
                             </div>
 
