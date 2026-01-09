@@ -1,10 +1,10 @@
 import React from 'react';
 import { useParams, Link } from 'react-router-dom';
-import SEO from '../components/SEO';
-import { guides } from '../data/guides';
+import SEO from '@/SEO';
+import { guides } from '@/guides';
 import NotFound from './NotFound';
 import { ChevronLeft, Calendar } from 'lucide-react';
-import { useLanguage } from '../contexts/LanguageContext';
+import { useLanguage } from '@/LanguageContext';
 
 const GuidePost: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();

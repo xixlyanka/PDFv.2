@@ -1,9 +1,9 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import SEO from '../components/SEO';
-import { guides } from '../data/guides';
+import SEO from '@/SEO';
+import { guides } from '@/guides';
 import { ArrowRight, BookOpen } from 'lucide-react';
-import { useLanguage } from '../contexts/LanguageContext';
+import { useLanguage } from '@/LanguageContext';
 
 const Guides: React.FC = () => {
   const { language } = useLanguage();

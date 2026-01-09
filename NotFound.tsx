@@ -1,8 +1,8 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Home } from 'lucide-react';
-import { ROUTES } from '../constants';
-import SEO from '../components/SEO';
+import { ROUTES } from '@/constants';
+import SEO from '@/SEO';
 
 const NotFound: React.FC = () => {
   return (

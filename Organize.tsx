@@ -1,14 +1,14 @@
 
 
 import React, { useState, useEffect } from 'react';
-import { UploadedFile, ProcessingResult, JobStatus } from '../types';
-import FileDropzone from '../components/FileDropzone';
+import { UploadedFile, ProcessingResult, JobStatus } from '@/types';
+import FileDropzone from '@/FileDropzone';
 import { LayoutGrid, Loader2, AlertCircle, FileText, ShieldCheck, Trash2, RotateCw, ArrowLeft, ArrowRight } from 'lucide-react';
-import { docService } from '../services/docService';
-import RewardedDownload from '../components/RewardedDownload';
-import SEO from '../components/SEO';
-import GoogleAd from '../components/GoogleAd';
-import { AD_SLOTS } from '../constants';
+import { docService } from '@/docService';
+import RewardedDownload from '@/RewardedDownload';
+import SEO from '@/SEO';
+import GoogleAd from '@/GoogleAd';
+import { AD_SLOTS } from '@/constants';
 
 interface PageItem {
     id: number; // Unique ID for key

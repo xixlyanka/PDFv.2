@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ROUTES, APP_NAME } from '../constants';
+import { ROUTES, APP_NAME } from '@/constants';
 
 const Footer: React.FC = () => {
   const [clickCount, setClickCount] = useState(0);

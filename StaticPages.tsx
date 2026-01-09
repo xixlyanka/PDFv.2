@@ -1,7 +1,7 @@
 
 import React from 'react';
-import SEO from '../components/SEO';
-import { APP_NAME, CONTACT_EMAIL } from '../constants';
+import SEO from '@/SEO';
+import { APP_NAME, CONTACT_EMAIL } from '@/constants';
 
 const PageLayout: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => (
   <div className="max-w-3xl mx-auto px-4 py-16">
@@ -29,7 +29,7 @@ export const PrivacyPolicy: React.FC = () => (
     <p>We do not collect any personal information or file data. Since files are processed locally on your computer using WebAssembly/JavaScript technologies, we simply do not have access to them.</p>
     
     <h3>2. Cookies & Advertising</h3>
-    <p>We use third-party advertising cookies (via Google AdSense) to keep this service free. These cookies track browsing habits to show relevant ads. You can manage these in your browser settings.</p>
+    <p>We work with privacy-conscious advertising partners to keep this service free. These cookies track anonymous browsing habits to show relevant ads. You can manage these in your browser settings.</p>
     
     <h3>3. Analytics</h3>
     <p>We use anonymous analytics to track page views and feature usage. No file content is ever tracked.</p>

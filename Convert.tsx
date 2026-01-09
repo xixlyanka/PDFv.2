@@ -1,16 +1,16 @@
 
 import React, { useState } from 'react';
-import { UploadedFile, ProcessingResult, JobStatus } from '../types';
-import FileDropzone from '../components/FileDropzone';
+import { UploadedFile, ProcessingResult, JobStatus } from '@/types';
+import FileDropzone from '@/FileDropzone';
 import { FileText, ArrowRight, Loader2, AlertCircle, ShieldCheck, Info, Settings2 } from 'lucide-react';
-import { docService } from '../services/docService';
-import RewardedDownload from '../components/RewardedDownload';
-import SEO from '../components/SEO';
-import GoogleAd from '../components/GoogleAd';
-import { AD_SLOTS } from '../constants';
-import { useStats } from '../contexts/StatsContext';
-import { useLanguage } from '../contexts/LanguageContext';
-import { useAdSettings } from '../contexts/AdSettingsContext';
+import { docService } from '@/docService';
+import RewardedDownload from '@/RewardedDownload';
+import SEO from '@/SEO';
+import GoogleAd from '@/GoogleAd';
+import { AD_SLOTS } from '@/constants';
+import { useStats } from '@/StatsContext';
+import { useLanguage } from '@/LanguageContext';
+import { useAdSettings } from '@/AdSettingsContext';
 
 const Convert: React.FC = () => {
   const [file, setFile] = useState<UploadedFile | null>(null);
@@ -66,6 +66,7 @@ const Convert: React.FC = () => {
   };
 
   const isImageToPdf = file && (file.type === 'JPG' || file.type === 'PNG') && targetFormat === 'PDF';
+  const isServerConversion = file && (file.type === 'DOCX' || file.type === 'XLSX');
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-20">
@@ -79,6 +80,16 @@ const Convert: React.FC = () => {
         {/* Main Tool Area */}
         <div className={showAds ? "lg:col-span-2" : "col-span-1"}>
             <div className="text-center lg:text-left mb-8">
+                <div className="flex items-center gap-3 justify-center lg:justify-start mb-3">
+                  <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold ${isServerConversion ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-200' : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-200'}`}>
+                    {isServerConversion ? 'Server-side' : 'Client-side'}
+                  </span>
+                  {isServerConversion ? (
+                    <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200">DOCX / XLSX → PDF</span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200">Images / PDF conversions stay local</span>
+                  )}
+                </div>
                 <h1 className="text-3xl font-bold text-gray-900 dark:text-white sm:text-4xl">Convert Documents</h1>
                 <p className="mt-3 text-lg text-gray-500 dark:text-gray-400">Convert PDF to JPG, Images to PDF, Excel to PDF, Word to PDF.</p>
             </div>
@@ -86,8 +97,12 @@ const Convert: React.FC = () => {
             <div className="mb-6 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4 flex items-start gap-3">
                 <ShieldCheck className="w-5 h-5 text-green-700 dark:text-green-400 flex-shrink-0 mt-0.5" />
                 <div>
-                <h4 className="text-sm font-bold text-green-800 dark:text-green-400">Privacy First</h4>
-                <p className="text-sm text-green-700 dark:text-green-300">Your files are processed locally in your browser. We never upload or store your documents.</p>
+                <h4 className="text-sm font-bold text-green-800 dark:text-green-400">{isServerConversion ? 'Server-side processing' : 'Client-side conversion'}</h4>
+                <p className="text-sm text-green-700 dark:text-green-300">
+                  {isServerConversion
+                    ? 'DOCX и XLSX отправляются на наш serverless-эндпоинт Vercel, обрабатываются и сразу удаляются. Остальные форматы остаются в браузере.'
+                    : 'Изображения и PDF преобразуются локально в браузере. Файлы не покидают устройство.'}
+                </p>
                 </div>
             </div>
 
@@ -187,10 +202,10 @@ const Convert: React.FC = () => {
                         
                         {/* Client-Side Limitations Warning */}
                         {(file.type === 'DOCX' || file.type === 'XLSX') && targetFormat === 'PDF' && (
-                            <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-md p-3 flex gap-3 text-sm">
-                                <Info className="w-5 h-5 text-yellow-600 dark:text-yellow-500 flex-shrink-0" />
-                                <span className="text-yellow-700 dark:text-yellow-400">
-                                    <strong>Note:</strong> We use browser-based conversion. Complex formatting may be simplified.
+                            <div className="bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800 rounded-md p-3 flex gap-3 text-sm">
+                                <Info className="w-5 h-5 text-indigo-600 dark:text-indigo-400 flex-shrink-0" />
+                                <span className="text-indigo-700 dark:text-indigo-300">
+                                    DOCX/XLSX конвертируются на сервере (Vercel) для точности. Файлы обрабатываются и сразу удаляются.
                                 </span>
                             </div>
                         )}
@@ -209,7 +224,7 @@ const Convert: React.FC = () => {
                     {status === 'processing' && (
                         <div className="text-center py-8">
                         <Loader2 className="w-10 h-10 text-indigo-600 dark:text-indigo-400 animate-spin mx-auto mb-4" />
-                        <p className="text-gray-900 dark:text-white font-medium">Processing locally...</p>
+                        <p className="text-gray-900 dark:text-white font-medium">Processing with server optimizations...</p>
                         <p className="text-sm text-indigo-600 dark:text-indigo-400 mt-2">{progressMsg}</p>
                         </div>
                     )}
