@@ -1,4 +1,4 @@
-import { Language } from '../translations';
+import { Language } from '@/translations';
 
 export interface Guide {
   id: string;

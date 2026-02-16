@@ -1,16 +1,16 @@
 
 import React, { useState } from 'react';
-import { UploadedFile, ProcessingResult, JobStatus } from '../types';
-import FileDropzone from '../components/FileDropzone';
+import { UploadedFile, ProcessingResult, JobStatus } from '@/types';
+import FileDropzone from '@/FileDropzone';
 import { FileText, ArrowRight, Loader2, AlertCircle, ShieldCheck, Info, Settings2 } from 'lucide-react';
-import { docService } from '../services/docService';
-import RewardedDownload from '../components/RewardedDownload';
-import SEO from '../components/SEO';
-import GoogleAd from '../components/GoogleAd';
-import { AD_SLOTS } from '../constants';
-import { useStats } from '../contexts/StatsContext';
-import { useLanguage } from '../contexts/LanguageContext';
-import { useAdSettings } from '../contexts/AdSettingsContext';
+import { docService } from '@/docService';
+import RewardedDownload from '@/RewardedDownload';
+import SEO from '@/SEO';
+import GoogleAd from '@/GoogleAd';
+import { AD_SLOTS } from '@/constants';
+import { useStats } from '@/StatsContext';
+import { useLanguage } from '@/LanguageContext';
+import { useAdSettings } from '@/AdSettingsContext';
 
 const Convert: React.FC = () => {
   const [file, setFile] = useState<UploadedFile | null>(null);

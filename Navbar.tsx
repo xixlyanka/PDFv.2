@@ -2,10 +2,10 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { FileText, Menu, X, Zap, Layers, Minimize2, Scissors, RotateCw, Stamp, Maximize, LayoutGrid, Lock, Unlock, ChevronDown, Hash, BookOpen, Globe, Wrench, PenTool, Monitor, Sun, Moon, ScanText, Image as ImageIcon, Tags, Code, Archive, Search, Shield } from 'lucide-react';
-import { ROUTES, APP_NAME } from '../constants';
-import { useLanguage } from '../contexts/LanguageContext';
-import { useTheme } from '../contexts/ThemeContext';
-import { Language, translations } from '../translations';
+import { ROUTES, APP_NAME } from '@/constants';
+import { useLanguage } from '@/LanguageContext';
+import { useTheme } from '@/ThemeContext';
+import { Language, translations } from '@/translations';
 
 const Navbar: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);

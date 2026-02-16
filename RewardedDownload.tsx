@@ -2,13 +2,13 @@
 
 import React, { useState, useEffect } from 'react';
 import { Download, Lock, CheckCircle, Loader2, ArrowRight, Star, Share2 } from 'lucide-react';
-import GoogleAd from './GoogleAd';
-import { AD_SLOTS, ROUTES } from '../constants';
-import { useLanguage } from '../contexts/LanguageContext';
+import GoogleAd from '@/GoogleAd';
+import { AD_SLOTS, ROUTES } from '@/constants';
+import { useLanguage } from '@/LanguageContext';
 import { Link, useNavigate } from 'react-router-dom';
-import { useFileHandler } from '../contexts/FileHandlerContext';
-import { UploadedFile } from '../types';
-import { useToast } from '../contexts/ToastContext';
+import { useFileHandler } from '@/FileHandlerContext';
+import { UploadedFile } from '@/types';
+import { useToast } from '@/ToastContext';
 
 interface RewardedDownloadProps {
   downloadUrl: string;
@@ -115,10 +115,11 @@ const RewardedDownload: React.FC<RewardedDownloadProps> = ({ downloadUrl, fileNa
           const response = await fetch(downloadUrl);
           const blob = await response.blob();
           const file = new File([blob], fileName, { type: blob.type });
-          
+
           const uploadedFile: UploadedFile = {
               id: Math.random().toString(36).substring(7),
               file: file,
+              name: file.name,
               type: 'PDF', // Assuming PDF workflow usually
               size: file.size,
               previewUrl: undefined

@@ -1,6 +1,6 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { AppStats } from '../types';
+import { AppStats } from '@/types';
 
 interface StatsContextType {
   stats: AppStats;
